@@ -49,6 +49,20 @@ $maint{'clean_caches'} = sub
     }
     print "    deleted $count\n";
 
+    print "-I- Cleaning old FAQ revisions.\n";
+    my @faqids = map {@$_} $dbh->selectall_array('SELECT DISTINCT faqid FROM faqhist');
+    $dbh->err and die "Nope" . $dbh->errstr;  # TODO better error handling
+
+    foreach my $faqid (@faqids) {
+        # Find the revision number of the first revision after the first five.
+        # If it exists, there are more than five entries, so the older ones get
+        # deleted.
+        my $rev = $dbh->selectrow_array('SELECT rev FROM faqhist WHERE faqid = ? ORDER BY rev DESC LIMIT 1 OFFSET 5', undef, $faqid);
+        if ($rev) {
+            $dbh->do('DELETE FROM faqhist WHERE faqid = ? AND rev <= ?', undef, $faqid, $rev);
+        }
+    }
+
     print "-I- Cleaning old random users.\n";
     my $count;
     foreach my $c (@LJ::CLUSTERS) {
